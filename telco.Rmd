@@ -1,0 +1,128 @@
+---
+title: "Machine Learning"
+author: "Gita Maharani"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Introduction
+Pada analisis yang tinggi, beberapa algoritma secara garis besar dibagi menjadi dua yaitu supervised learning dan unsupervised learning.
+
+Pendekatan supervised learning paling sering digunakan dalam dunia data science dibandingkan dengan unsupervised learning. Analisis regresi linier berganda maupun logistik yang notabene sudah tidak asing lagi di dengar adalah salah satu contoh dari supervised learning. 
+Perbedaan kedua algorima tersebut terletak pada membuat suatu prediksi maupun klasifikasi. Dalam supervised learning, algoritma tersebut seolah-olah dilatih terlebih dahulu agar dapat melakukan prediksi maupun klasifikas atau supervised learning membutuhkan data training (harus dilatih terlebih dahulu) sedangkan unsupervised learning tidak membutuhkan data training (tidak perlu dilatih terlebih dahulu).
+
+Pendekatan supervised learning mempuyai input dan output yang dapat dibuat menjadi suatu model hubungan matematis sehingga mampu melakukan prediksi dan klasifikasi berdasarkan data yang telah ada sebelumnya.
+
+Pada kali ini akan melakukan analisis terhadap data yang berhubungan dengan internet. Internet merupakan kebutuhan pokok bagi kaum millenial keatas, pada penelitian ini, saya ingin meneliti mengenai pengaruh Jenis Internet apakah yang memiliki tech support. Penelitian ini akan menggunakan metode `Decision Tree` dan `Naive Bayes`.
+
+# 2. Import Library
+
+```{r warning = FALSE, message = FALSE}
+set.seed(666)
+library(dplyr) 
+library(ggplot2) 
+library(gridExtra) 
+library(inspectdf)
+library(caret) 
+library(partykit)
+library(e1071)
+```
+
+#3. Eksplorasi Data
+## 3.1 Input Data
+Data yang ingin digunakan pastikan sudah satu folder dengan rproj dan setelah itu melakukan cek tipe data.
+```{r}
+telco <- read.csv("telco.csv", stringsAsFactors = T)
+str(telco)
+head(telco,10)
+```
+
+## 3.2 Data Cleaning
+Melihat missing value pada dataset
+```{r}
+anyNA(telco)
+colSums(is.na(telco))
+```
+Masih terdapat missing value pada column 'TotalCharges', sehingga perlu dibersihkan
+```{r}
+telco <- na.omit(telco)
+
+anyNA(telco)
+colSums(is.na(telco))
+```
+
+Data yang digunakan sudah tidak ada missing value
+
+## 3.3 Proposi Data
+Tahapan selanjutnya yaitu melihat proporsi data
+```{r}
+table(telco$InternetService) %>% 
+  prop.table()
+```
+Proporsi membutuhkan upsample di No, agar menjadi balance.
+
+# 4. Train-Test Split
+Split data dilakukan untuk membagi data menjadi datatest (latih), datauji dan dataprediksi dengan pembagian pembagian data 80%:20%. Penggunaan seed dilakukan agar hasil pengacakan tetap. Setiap nilai seed akan melakukan pengacakan yang berbeda sehingga hasil dari setiap nilai seed juga akan berbeda (misal dalam akurasi).
+```{r}
+library(rsample)
+index <- initial_split(telco, prop = 0.8)
+data_train <- training(index)
+data_test <- testing(index)
+```
+
+```{r}
+train_up <- upSample(x = data_train,
+                     y = data_train$InternetService, yname = "InternetService"
+                     )
+table(train_up$InternetService)
+```
+# 5. Pembuatan Model
+Langkah selanjutnya adalah merancang model klasifikasi menggunakan algoritma yang berbeda dan membandingkan akurasi model dari seluruh model 
+
+## 5.1 Model Decision Tree
+Decision tree adalah salah satu metode klasifikasi yang paling populer dalam bidang data, karena mudah untuk diinterpretasi oleh manusia. Decision tree adalah model prediksi menggunakan struktur pohon atau struktur berhirarki.
+```{r}
+Model_Decision <- ctree(TechSupport ~ InternetService, data = data_train)
+plot(Model_Decision)
+```
+
+## 5.2 Model Evaluation
+
+```{r}
+pred_test <- predict(Model_Decision, data_test)
+head(pred_test)
+```
+
+```{r}
+confusionMatrix(pred_test, data_test$TechSupport, positive = "Yes")
+```
+Dari Plot tersebut dapat disimpulkan bahwa DSL(atau yang kita tahu dengan kabel Croax) lebih memiliki technical support dibandingkan dengan layanan dengan fiber optic. Pengujian data tersebut memiliki akurasi 70%.
+
+## 5.3 Naive Bayes
+Naive Bayes adalah metode yang cocok untuk klasifikasi biner dan multiclass. Metode ini menerapkan teknik supervised klasifikasi objek di masa depan dengan menetapkan label kelas ke instance/catatan menggunakan probabilitas bersyarat.
+```{r}
+model_bayes <- naiveBayes(InternetService ~ ., train_up)
+pred_bayes <- predict(model_bayes, data_test)
+confusionMatrix(pred_bayes, data_test$InternetService, positive = "Yes")
+```
+
+Pada metode `naive bayes` memperlihatkan bahwa tingkat akurasi 90% sama dengan model ctree.
+
+# 6. Conclusion
+
+Berdasarkan kedua uji test tersebut, didapatkan hasil bahwa lebih baik menggunakan metode `naive bayes` dengan tingkat akurasi 90% dibandingkan dengan metode decision tree dengan tingkat akurasi 70%.
+
+Berdasarkan Uji ctree, dapat disimpulkan bahwa yang lebih memiliki tech support adalah layanan DSL dibandingkan dengan layanan Fiber Optik.
+
